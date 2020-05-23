@@ -50,11 +50,19 @@ class BloomFilter {
         this.bitArray = Array(LENGTH_OF_ARRAY).fill(0);
     }
 
+    /**
+     * 
+     * @param {*} hashTrnsctn 
+     */
     add(hashTrnsctn) {
         const indecies = ResultsHashFunctionFromHex(hashTrnsctn);
         indecies.forEach( index => this.bitArray[index] = 1);
     }
 
+    /**
+     * 
+     * @param {*} hashTrnsctn 
+     */
     isExist(hashTrnsctn) {
         const indecies = ResultsHashFunctionFromHex(hashTrnsctn);
         for (const index of indecies) {
@@ -68,4 +76,4 @@ class BloomFilter {
 
 }
 
-module.exports = BloomFilter;
+module.exports.BloomFilter = BloomFilter;

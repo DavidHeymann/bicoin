@@ -1,7 +1,18 @@
-const crypto = require('crypto');
+const SHA256 = require("crypto-js/sha256");
 const EC = require('elliptic').ec;
 const ec = new EC('secp256k1');
+const { BloomFilter } = require('./bloomFilter');
+const { MerkleTree } = require('merkletreejs');
 const debug = require('debug')('savjeecoin:blockchain');
+
+
+/*
+  שמירת טרנזקציות בmempool
+  לקיחת טרנזקציות בmempool
+  להחליט מה עם fullNode
+  לחבר את הwallet לפולנוד
+  P2P
+*/
 
 class Transaction {
   /**
@@ -22,7 +33,7 @@ class Transaction {
    * @returns {string}
    */
   calculateHash() {
-    return crypto.createHash('sha256').update(this.fromAddress + this.toAddress + this.amount + this.timestamp).digest('hex');
+    return SHA256(this.fromAddress + this.toAddress + this.amount + this.timestamp).toString();
   }
 
   /**
@@ -38,7 +49,7 @@ class Transaction {
     if (signingKey.getPublic('hex') !== this.fromAddress) {
       throw new Error('You cannot sign transactions for other wallets!');
     }
-    
+
 
     // Calculate the hash of this transaction, sign it with the key
     // and store it inside the transaction obect
@@ -81,6 +92,9 @@ class Block {
     this.transactions = transactions;
     this.nonce = 0;
     this.hash = this.calculateHash();
+    this.filter = this.makeBloomFilter();
+    this.merkleTree = makeMerkelTree();
+    this.merkleRoot = merkleTree.getRoot().toString('hex');
   }
 
   /**
@@ -90,7 +104,42 @@ class Block {
    * @returns {string}
    */
   calculateHash() {
-    return crypto.createHash('sha256').update(this.previousHash + this.timestamp + JSON.stringify(this.transactions) + this.nonce).digest('hex');
+    return SHA256(this.previousHash + this.timestamp + JSON.stringify(this.transactions) + this.nonce).toString();
+  }
+
+  /**
+   * 
+   */
+  makeBloomFilter() {
+    let bFilter = new BloomFilter();
+    this.transactions.forEach((tranc) => {
+      bFilter.add(tranc.signature);
+    })
+
+    return bFilter;
+  }
+
+  /**
+   * 
+   */
+  makeMerkelTree() {
+    const leaves = this.transactions.map(tranc => tranc.signature);
+    const tree = new MerkleTree(leaves, SHA256);
+    return tree;
+    /* 
+    console.log(tree.verify(proof, leaf, root)) */
+  }
+
+  /**
+   * 
+   * @param {*} hash 
+   */
+  exsitTranc(hash) {
+    this.filter.isExist(hash);
+  }
+
+  getProofMerkleTree(hash){
+    return this.merkleTree.getProof(hash);
   }
 
   /**
@@ -186,11 +235,11 @@ class Blockchain {
     if (!transaction.isValid()) {
       throw new Error('Cannot add invalid transaction to chain');
     }
-    
+
     if (transaction.amount <= 0) {
       throw new Error('Transaction amount should be higher than 0');
     }
-    
+
     // Making sure that the amount sent is not greater than existing balance
     if (this.getBalanceOfAddress(transaction.fromAddress) < transaction.amount) {
       throw new Error('Not enough balance');

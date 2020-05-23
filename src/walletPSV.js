@@ -1,3 +1,8 @@
+const {Blockchain, Block, Transaction} = require('./blockchain');
+const EC = require('elliptic').ec;
+const ec = new EC('secp256k1');
+const { MerkleTree } = require('merkletreejs');
+
 class WalletPSV{
     constructor(keyPair){
         this.keyPair = keyPair;
@@ -6,6 +11,9 @@ class WalletPSV{
     }
 
     executeTransaction(toAddress, amount){
+        let tranc = new Transaction(myKey.getPublic('hex'), toAddress, amount);
+        let singTranc = tranc.signTransaction(this.keyPair);
+        return singTranc;
         /**
          * ליצור טרנזקציה
          * לחתום אותה
@@ -14,7 +22,13 @@ class WalletPSV{
          */
     }
 
+
+    /**
+     * 
+     * @param {*} hash 
+     */
     checkTransactionInBlock(hash){
+
         /**
          * לשלוח לבלוקצ'יין שיבדוק באמעות בלוםפילטר 
          * יחזיר את הטרנזקציה
@@ -23,9 +37,14 @@ class WalletPSV{
          */
     }
 
-    verifyTransactionInBlock(hash, MerklePath) {
-        /**
-         * יבדוק אם מתאים לblock
-         */
+
+    /**
+     * 
+     * @param {*} hash 
+     * @param {*} MerklePath 
+     */
+    verifyTransactionInBlock(trancHash, blockHash, merklePath, merkleTree) {
+        const merkleRoot = this.blocks.find(this.blocks.hash == blockHash).merkleRoot;
+        return merkleTree.verify(merklePath, trancHash, merkleRoot);
     }
 }
